@@ -1,0 +1,3320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>本地记事本</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 12px;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: 80px;
+        }
+
+        .app-container {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .top-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .menu-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .menu-btn:active {
+            transform: scale(0.92);
+            background: #f1f5f9;
+        }
+
+        .search-inline {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-inline input {
+            width: 100%;
+            padding: 11px 16px;
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 0.95rem;
+            outline: none;
+            box-shadow: var(--shadow);
+            transition: border-color 0.2s;
+        }
+
+        .search-inline input:focus {
+            border-color: var(--primary);
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 900;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            max-width: 82vw;
+            background: var(--card-bg);
+            z-index: 950;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .drawer-actions {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .drawer-actions .btn {
+            flex: 1;
+            padding: 8px 4px;
+            font-size: 0.78rem;
+            border-radius: 16px;
+            white-space: nowrap;
+        }
+
+        .drawer-section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin: 4px 0 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sort-toggle {
+            display: flex;
+            gap: 3px;
+            background: var(--bg);
+            border-radius: 14px;
+            padding: 3px;
+            margin-bottom: 10px;
+        }
+
+        .sort-toggle button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 5px 4px;
+            border-radius: 11px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .sort-toggle button.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            font-weight: 600;
+        }
+
+        .drawer-group-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .drawer-group-item {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+        }
+
+        .drawer-group-item:active {
+            background: #f1f5f9;
+        }
+
+        .drawer-group-item.active {
+            background: #eff6ff;
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .drawer-group-item .g-count {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            background: var(--bg);
+            padding: 1px 8px;
+            border-radius: 10px;
+        }
+
+        .drawer-group-item.active .g-count {
+            background: #dbeafe;
+            color: var(--primary);
+        }
+
+        .drawer-default-badge {
+            font-size: 0.65rem;
+            background: #f59e0b;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 8px;
+            margin-left: 4px;
+        }
+
+        .drawer-option-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+
+        .drawer-option-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .drawer-option-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .btn-primary:active { background: var(--primary-hover); }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+        .btn-danger:active { background: var(--danger-hover); }
+
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 16px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            box-shadow: none;
+        }
+
+        .announcement-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+            border-left: 5px solid #f59e0b;
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .announcement-header h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #92400e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .announcement-actions {
+            display: flex;
+            gap: 3px;
+        }
+
+        .announcement-actions .icon-btn {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #92400e;
+            transition: background 0.2s;
+        }
+
+        .announcement-actions .icon-btn:active {
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .announcement-content {
+            font-size: 0.92rem;
+            color: #78350f;
+            word-break: break-word;
+            white-space: pre-wrap;
+            min-height: 18px;
+        }
+
+        .announcement-empty {
+            color: #b45309;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin: 12px 0 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .sort-toggle {
+            margin-bottom: 0;
+            width: auto;
+            flex: 0 0 auto;
+        }
+
+        .section-title .sort-toggle button {
+            padding: 3px 8px;
+            font-size: 0.65rem;
+        }
+
+        .topic-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+        }
+
+        .topic-grid-item {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 8px 4px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            min-height: 58px;
+        }
+
+        .topic-grid-item:active {
+            background: #f1f5f9;
+            transform: scale(0.96);
+        }
+
+        .topic-grid-name {
+            font-weight: 500;
+            font-size: 0.68rem;
+            word-break: break-word;
+            line-height: 1.2;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            padding: 0 2px;
+        }
+
+        .topic-count-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.58rem;
+            font-weight: 600;
+            min-width: 15px;
+            height: 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1.5px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+
+        .topic-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .topic-item {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .topic-item:active { background: #f1f5f9; }
+
+        .topic-item-left {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .topic-name {
+            font-weight: 500;
+            font-size: 1rem;
+            word-break: break-word;
+        }
+
+        .topic-meta {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 2px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .topic-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            transition: background 0.2s;
+        }
+
+        .icon-btn:active { background: #e2e8f0; }
+
+        .note-editor {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .note-editor textarea {
+            width: 100%;
+            min-height: 76px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            margin-bottom: 8px;
+        }
+
+        .note-editor textarea:focus { border-color: var(--primary); }
+
+        .note-editor-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .note-editor-toolbar-left {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .mention-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--primary);
+            transition: all 0.2s;
+        }
+
+        .mention-btn:active {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        .mention-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .mention-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .mention-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .mention-chip .remove-x {
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        .mention-chip .remove-x:active { opacity: 1; }
+
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .note-item {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 10px 14px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+        }
+
+        .note-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            gap: 8px;
+        }
+
+        .note-date {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+
+        .note-content {
+            font-size: 0.9rem;
+            color: var(--text);
+            word-break: break-word;
+            white-space: pre-wrap;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .note-mentions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .note-mention-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .note-mention-chip:active { background: #bfdbfe; }
+
+        .backlink-section {
+            margin-top: 18px;
+            background: #f8fafc;
+            border-radius: var(--radius);
+            padding: 14px;
+            border: 1px dashed #cbd5e1;
+        }
+
+        .backlink-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .backlink-item {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--primary);
+        }
+
+        .backlink-item:last-child { margin-bottom: 0; }
+
+        .backlink-source {
+            font-size: 0.72rem;
+            color: var(--primary);
+            margin-bottom: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .backlink-source:active { opacity: 0.6; }
+
+        .backlink-content {
+            font-size: 0.88rem;
+            color: var(--text);
+            word-break: break-word;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        .backlink-date {
+            font-size: 0.68rem;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .note-actions .btn-sm {
+            padding: 2px 10px;
+            font-size: 0.75rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal h3 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .modal textarea, .modal input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 1rem;
+            font-family: inherit;
+            margin-bottom: 12px;
+            resize: vertical;
+            outline: none;
+        }
+
+        .modal textarea:focus, .modal input:focus { border-color: var(--primary); }
+
+        .modal textarea { min-height: 120px; }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .hidden { display: none !important; }
+
+        .empty-tip {
+            text-align: center;
+            color: var(--text-light);
+            padding: 26px 0;
+            font-size: 0.9rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .toast.show { opacity: 1; }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            font-size: 0.9rem;
+        }
+
+        .page-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .page-info { color: var(--text-light); }
+
+        .history-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .history-item:last-child { border-bottom: none; }
+
+        .history-date {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+
+        .history-content {
+            color: var(--text);
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: var(--text-light);
+            padding: 30px 0;
+            font-size: 0.95rem;
+        }
+
+        .fab-home {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 500;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .fab-home:active {
+            transform: scale(0.9);
+            background: var(--primary-hover);
+        }
+
+        .fab-home.hidden { display: none !important; }
+
+        .import-option {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .import-option:last-child { border-bottom: none; }
+        .import-option-title { font-weight: 600; margin-bottom: 4px; }
+        .import-option-desc { font-size: 0.8rem; color: var(--text-light); }
+
+        .sub-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 4px 0;
+            margin-bottom: 8px;
+        }
+
+        .sub-back:active { opacity: 0.6; }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .view-header-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .view-header-right {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .notes-group-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+            padding: 3px 12px;
+            border-radius: 14px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .notes-group-badge:active {
+            background: #dbeafe;
+            border-color: var(--primary);
+        }
+
+        .notes-group-badge.empty {
+            display: none;
+        }
+
+        .mg-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .mg-row:last-child { border-bottom: none; }
+
+        .batch-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .batch-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .batch-section textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            margin-bottom: 10px;
+        }
+
+        .batch-section textarea:focus { border-color: var(--primary); }
+
+        .batch-section select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            margin-bottom: 10px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .batch-section select:focus { border-color: var(--primary); }
+
+        .topic-btn-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .topic-btn {
+            padding: 6px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .topic-btn:active {
+            background: #eff6ff;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .topic-btn.inserted {
+            background: #ecfdf5;
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        .batch-hint {
+            font-size: 0.78rem;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .batch-hint code {
+            background: #f1f5f9;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .search-section-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin: 14px 0 6px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-section-label:first-child {
+            margin-top: 0;
+        }
+
+        .mention-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1100;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .mention-panel-inner {
+            background: var(--card-bg);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 640px;
+            max-height: 80vh;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .mention-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .mention-panel-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .mention-panel-header .close-x {
+            background: transparent;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--text-light);
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+
+        .mention-panel-header .close-x:active {
+            background: #f1f5f9;
+        }
+
+        .mention-group-select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            margin-bottom: 12px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .mention-group-select:focus { border-color: var(--primary); }
+
+        .mention-topic-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .mention-topic-item {
+            padding: 10px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.82rem;
+            position: relative;
+            word-break: break-word;
+            line-height: 1.3;
+        }
+
+        .mention-topic-item:active {
+            background: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        .mention-topic-item.selected {
+            background: #dbeafe;
+            border-color: var(--primary);
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .mention-topic-item.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .mention-panel-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            gap: 10px;
+        }
+
+        .mention-panel-footer .selected-count {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container" id="app">
+
+    <div class="top-row">
+        <div class="menu-btn" id="menuBtn">📒</div>
+        <div class="search-inline">
+            <input type="text" id="searchInput" placeholder="🔍 搜索记事或主题...">
+        </div>
+    </div>
+
+    <div id="homeView">
+        <div class="announcement-card" id="announcementCard">
+            <div class="announcement-header">
+                <h2>📢 公告</h2>
+                <div class="announcement-actions">
+                    <button class="icon-btn" id="addAnnouncementBtn" title="添加公告">➕</button>
+                    <button class="icon-btn" id="editAnnouncementBtn" title="编辑公告">✏️</button>
+                    <button class="icon-btn" id="deleteAnnouncementBtn" title="删除公告">🗑️</button>
+                    <button class="icon-btn" id="historyAnnouncementBtn" title="历史公告">🕐</button>
+                </div>
+            </div>
+            <div class="announcement-content" id="announcementContent">
+                <span class="announcement-empty">暂无公告</span>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <span>📌 默认分组的主题</span>
+            <div class="sort-toggle" id="homeTopicSortToggle">
+                <button data-sort="default">📋 默认</button>
+                <button data-sort="pinyin">🔤 拼音</button>
+                <button data-sort="count">📝 记事数</button>
+            </div>
+        </div>
+        <div id="defaultTopicsGrid" class="topic-grid"></div>
+    </div>
+
+    <div id="topicsView" class="hidden">
+        <button class="sub-back" id="topicsBackBtn">← 返回主页</button>
+        <div class="view-header">
+            <span class="view-header-title" id="topicsGroupName"></span>
+            <div class="view-header-right">
+                <div class="sort-toggle" id="topicSortToggle">
+                    <button data-sort="default">📋 默认</button>
+                    <button data-sort="pinyin">🔤 拼音</button>
+                    <button data-sort="count">📝 记事数</button>
+                </div>
+                <button class="btn btn-sm btn-primary" id="addTopicBtn">+ 新建</button>
+            </div>
+        </div>
+        <div id="topicsList" class="topic-list"></div>
+        <div style="margin-top: 14px;">
+            <button class="btn btn-sm btn-outline" id="batchImportBtn">📥 批量导入主题</button>
+        </div>
+    </div>
+
+    <div id="notesView" class="hidden">
+        <button class="sub-back" id="notesBackBtn">← 返回主题列表</button>
+        <div class="view-header">
+            <span class="view-header-title" id="notesTopicName"></span>
+            <span class="notes-group-badge empty" id="notesGroupBadge"></span>
+        </div>
+        <div class="note-editor">
+            <textarea id="newNoteContent" placeholder="输入记事内容... 可点击 @ 同时关联到其他主题"></textarea>
+            <div class="note-editor-toolbar">
+                <div class="note-editor-toolbar-left">
+                    <button class="mention-btn" id="mentionBtn">@ 关联主题</button>
+                </div>
+                <button class="btn btn-sm btn-primary" id="saveNoteBtn">保存记事</button>
+            </div>
+            <div class="mention-preview" id="mentionPreview"></div>
+        </div>
+        <div id="notesList" class="notes-list"></div>
+        <div class="pagination" id="notesPagination"></div>
+
+        <div id="backlinkSection" class="backlink-section hidden">
+            <div class="backlink-title">🔗 被提及（其他主题中 @ 了本主题的记事）</div>
+            <div id="backlinkList"></div>
+        </div>
+    </div>
+
+    <div id="searchView" class="hidden">
+        <div class="view-header">
+            <span class="view-header-title">🔍 搜索结果</span>
+        </div>
+        <div id="searchResultsList"></div>
+    </div>
+
+    <div id="batchView" class="hidden">
+        <button class="sub-back" id="batchBackBtn">← 返回主页</button>
+        <div class="view-header">
+            <span class="view-header-title">📦 批量操作</span>
+        </div>
+
+        <div class="batch-section">
+            <h3>🔀 一记多插</h3>
+            <div class="batch-hint">输入一条记事，选择分组，点击主题即可插入到多个主题中。</div>
+            <textarea id="multiNoteContent" placeholder="输入记事内容..."></textarea>
+            <select id="multiGroupSelect"></select>
+            <div class="topic-btn-area" id="multiTopicArea"></div>
+            <div style="font-size:0.78rem;color:var(--text-light);margin-top:4px;">
+                已插入：<span id="multiInsertedCount">0</span> 个主题
+            </div>
+        </div>
+
+        <div class="batch-section">
+            <h3>📋 表格导入记事</h3>
+            <div class="batch-hint">
+                粘贴以 <code>Tab</code> 分隔的表格。第一行是分组名（从第二列开始），第一列是主题名。<br>
+                第一行第一格留空或写任意标题。系统会自动创建缺失的分组和主题。
+            </div>
+            <textarea id="tableImportContent" placeholder="主题	分组1	分组2&#10;主题1	记事A	记事B&#10;主题2	记事C	记事D"></textarea>
+            <div class="modal-actions" style="justify-content:flex-start;">
+                <button class="btn btn-sm btn-primary" id="tableImportBtn">导入</button>
+                <button class="btn btn-sm btn-outline" id="tableImportClear">清空</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+    <div class="drawer-title">📒 记事本</div>
+
+    <div class="drawer-actions">
+        <button class="btn btn-sm btn-outline" id="exportBtn">📤 导出</button>
+        <button class="btn btn-sm btn-outline" id="importBtn">📥 导入</button>
+        <button class="btn btn-sm btn-primary" id="manageGroupsBtn">📂 分组</button>
+        <button class="btn btn-sm btn-outline" id="batchBtn">📦 批量</button>
+    </div>
+
+    <div class="drawer-section-title">
+        <span>@ 关联模式</span>
+    </div>
+    <div class="drawer-option-row">
+        <label>
+            <input type="checkbox" id="mentionCopyMode">
+            <span>同时复制记事到被@的主题</span>
+        </label>
+    </div>
+    <div style="font-size:0.72rem;color:var(--text-light);margin:-2px 0 12px 4px;line-height:1.4;">
+        勾选：被@的主题会新增一条同样内容的记事。<br>
+        不勾选：只在被@的主题的"被提及"区块显示。
+    </div>
+
+    <div class="drawer-section-title">
+        <span>所有分组</span>
+    </div>
+
+    <div class="sort-toggle" id="drawerSortToggle">
+        <button data-sort="default">📋 默认</button>
+        <button data-sort="pinyin">🔤 拼音</button>
+        <button data-sort="count">📝 记事数</button>
+    </div>
+
+    <div class="drawer-group-list" id="drawerGroupList"></div>
+</div>
+
+<button class="fab-home hidden" id="fabHomeBtn" title="回到主页">🏠</button>
+
+<div id="modalContainer"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+    (function() {
+        // ==================== 分片存储层 ====================
+        // 存储结构：
+        //   app_meta       -> { groups, announcement, preferences, version }
+        //   notes_index    -> [ { id, groupId, topicId, createdAt } ]  只存元数据
+        //   note_<id>      -> { id, groupId, topicId, content, createdAt, mentions, sourceTopicId }
+
+        const META_KEY = 'app_meta';
+        const INDEX_KEY = 'notes_index';
+        const NOTE_PREFIX = 'note_';
+
+        // 内存中的数据（启动时加载）
+        // data.groups / data.announcement / data.preferences 来自 meta
+        // data.notes 是完整的记事对象数组（从分片加载）
+        // data.notesIndex 是轻量索引（用于统计/排序/搜索定位）
+        let data = {
+            groups: [],
+            notes: [],
+            notesIndex: [],
+            announcement: { current: '', history: [] },
+            preferences: {
+                topicSort: 'default',
+                drawerSort: 'default',
+                mentionCopyMode: false
+            }
+        };
+
+        function getDefaultMeta() {
+            return {
+                version: '4.0',
+                groups: [
+                    { id: 'default_group', name: '默认分组', isDefault: true, topics: [] }
+                ],
+                announcement: { current: '', history: [] },
+                preferences: {
+                    topicSort: 'default',
+                    drawerSort: 'default',
+                    mentionCopyMode: false
+                }
+            };
+        }
+
+        // 统一的存储读写接口，兼容 HBuilder App 与普通浏览器
+        const storage = {
+            get(key) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    return raw === null ? null : raw;
+                } catch (e) {
+                    return null;
+                }
+            },
+            set(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                    return true;
+                } catch (e) {
+                    console.error('存储写入失败', key, e);
+                    return false;
+                }
+            },
+            remove(key) {
+                try {
+                    localStorage.removeItem(key);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            keys() {
+                try {
+                    const arr = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        arr.push(localStorage.key(i));
+                    }
+                    return arr;
+                } catch (e) {
+                    return [];
+                }
+            }
+        };
+
+        // ---- 加载 meta ----
+        function loadMeta() {
+            const raw = storage.get(META_KEY);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed.groups) data.groups = parsed.groups;
+                    if (parsed.announcement) data.announcement = parsed.announcement;
+                    if (parsed.preferences) {
+                        data.preferences = Object.assign(data.preferences, parsed.preferences);
+                    }
+                    return;
+                } catch (e) {
+                    console.warn('meta 解析失败');
+                }
+            }
+            // 使用默认
+            const def = getDefaultMeta();
+            data.groups = def.groups;
+            data.announcement = def.announcement;
+            data.preferences = Object.assign(data.preferences, def.preferences);
+        }
+
+        // ---- 保存 meta（分组、公告、偏好）----
+        function saveMeta() {
+            const meta = {
+                version: '4.0',
+                groups: data.groups,
+                announcement: data.announcement,
+                preferences: data.preferences
+            };
+            if (!storage.set(META_KEY, JSON.stringify(meta))) {
+                showToast('存储空间不足，保存失败');
+            }
+        }
+
+        // ---- 加载 notes_index ----
+        function loadNotesIndex() {
+            const raw = storage.get(INDEX_KEY);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        data.notesIndex = parsed;
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('notes_index 解析失败');
+                }
+            }
+            data.notesIndex = [];
+        }
+
+        // ---- 保存 notes_index ----
+        function saveNotesIndex() {
+            if (!storage.set(INDEX_KEY, JSON.stringify(data.notesIndex))) {
+                showToast('索引保存失败');
+            }
+        }
+
+        // ---- 加载所有记事分片 ----
+        function loadAllNotes() {
+            data.notes = [];
+            const allKeys = storage.keys();
+            const noteKeys = allKeys.filter(k => k.startsWith(NOTE_PREFIX));
+            for (const k of noteKeys) {
+                const raw = storage.get(k);
+                if (!raw) continue;
+                try {
+                    const note = JSON.parse(raw);
+                    if (!note.mentions) note.mentions = [];
+                    if (!note.sourceTopicId) note.sourceTopicId = null;
+                    data.notes.push(note);
+                } catch (e) {
+                    console.warn('记事分片解析失败', k);
+                }
+            }
+            // 用 index 补全（如果分片缺失，index 里有记录也没用，跳过）
+        }
+
+        // ---- 加载记事分片（按 id）----
+        function getNote(id) {
+            const raw = storage.get(NOTE_PREFIX + id);
+            if (!raw) return null;
+            try {
+                const note = JSON.parse(raw);
+                if (!note.mentions) note.mentions = [];
+                if (!note.sourceTopicId) note.sourceTopicId = null;
+                return note;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ---- 保存单条记事分片 ----
+        function saveNote(note) {
+            const ok = storage.set(NOTE_PREFIX + note.id, JSON.stringify(note));
+            if (!ok) {
+                showToast('记事保存失败：空间不足');
+                return false;
+            }
+            // 同步内存
+            const idx = data.notes.findIndex(n => n.id === note.id);
+            if (idx >= 0) data.notes[idx] = note;
+            else data.notes.push(note);
+
+            // 同步索引
+            const idxInIndex = data.notesIndex.findIndex(n => n.id === note.id);
+            const indexEntry = {
+                id: note.id,
+                groupId: note.groupId,
+                topicId: note.topicId,
+                createdAt: note.createdAt
+            };
+            if (idxInIndex >= 0) data.notesIndex[idxInIndex] = indexEntry;
+            else data.notesIndex.push(indexEntry);
+
+            saveNotesIndex();
+            return true;
+        }
+
+        // ---- 删除单条记事 ----
+        function deleteNote(id) {
+            storage.remove(NOTE_PREFIX + id);
+            data.notes = data.notes.filter(n => n.id !== id);
+            data.notesIndex = data.notesIndex.filter(n => n.id !== id);
+            saveNotesIndex();
+        }
+
+        // ---- 批量保存（用于导入等场景）----
+        function saveNotesBatch(notes) {
+            let failed = 0;
+            for (const note of notes) {
+                if (!note.mentions) note.mentions = [];
+                if (!note.sourceTopicId) note.sourceTopicId = null;
+                if (!storage.set(NOTE_PREFIX + note.id, JSON.stringify(note))) {
+                    failed++;
+                }
+            }
+            // 重建内存 notes 和 index
+            data.notes = [];
+            data.notesIndex = [];
+            const allKeys = storage.keys();
+            for (const k of allKeys) {
+                if (!k.startsWith(NOTE_PREFIX)) continue;
+                const raw = storage.get(k);
+                if (!raw) continue;
+                try {
+                    const note = JSON.parse(raw);
+                    if (!note.mentions) note.mentions = [];
+                    if (!note.sourceTopicId) note.sourceTopicId = null;
+                    data.notes.push(note);
+                    data.notesIndex.push({
+                        id: note.id,
+                        groupId: note.groupId,
+                        topicId: note.topicId,
+                        createdAt: note.createdAt
+                    });
+                } catch (e) {}
+            }
+            saveNotesIndex();
+            return failed;
+        }
+
+        // ---- 清空所有记事分片 ----
+        function clearAllNotes() {
+            const allKeys = storage.keys();
+            for (const k of allKeys) {
+                if (k.startsWith(NOTE_PREFIX)) {
+                    storage.remove(k);
+                }
+            }
+            storage.remove(INDEX_KEY);
+            data.notes = [];
+            data.notesIndex = [];
+        }
+
+        // ==================== 初始化加载 ====================
+        function initLoad() {
+            loadMeta();
+            loadNotesIndex();
+            loadAllNotes();
+
+            // 兼容旧数据：如果旧版有 notepad_app_data_v3，迁移过来
+            migrateFromOldVersion();
+
+            ensureDataIntegrity();
+            saveMeta();
+            saveNotesIndex();
+        }
+
+        function migrateFromOldVersion() {
+            // 旧版单键存储的键名
+            const oldKeys = ['notepad_app_data_v3', 'notepad_app_data_v2'];
+            for (const oldKey of oldKeys) {
+                const raw = storage.get(oldKey);
+                if (!raw) continue;
+                try {
+                    const old = JSON.parse(raw);
+                    if (!old.groups) continue;
+                    // 如果新存储已经有数据，不迁移
+                    if (data.groups.length > 1 || data.notes.length > 0) return;
+                    console.log('检测到旧版数据，迁移中...');
+                    // 迁移 groups / announcement / preferences
+                    data.groups = old.groups || data.groups;
+                    if (old.announcement) data.announcement = old.announcement;
+                    if (old.preferences) data.preferences = Object.assign(data.preferences, old.preferences);
+                    // 迁移 notes
+                    const oldNotes = old.notes || [];
+                    const newNotes = [];
+                    for (const n of oldNotes) {
+                        newNotes.push({
+                            id: n.id || generateId(),
+                            groupId: n.groupId,
+                            topicId: n.topicId,
+                            content: n.content || '',
+                            createdAt: n.createdAt || Date.now(),
+                            mentions: n.mentions || [],
+                            sourceTopicId: n.sourceTopicId || null
+                        });
+                    }
+                    saveNotesBatch(newNotes);
+                    saveMeta();
+                    saveNotesIndex();
+                    // 删除旧键，避免下次重复迁移
+                    storage.remove(oldKey);
+                    showToast('已从旧版数据迁移');
+                    return;
+                } catch (e) {
+                    console.warn('旧版迁移失败', e);
+                }
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+        }
+
+        function formatDateOnly(ts) {
+            const d = new Date(ts);
+            return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+        }
+
+        function formatFullTime(ts) {
+            const d = new Date(ts);
+            return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+        }
+
+        function showToast(msg, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        function confirmDelete(message) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal" style="max-width:300px;">
+                        <h3>确认删除</h3>
+                        <p style="margin-bottom:16px;color:var(--text-light);font-size:0.9rem;">${message}</p>
+                        <div class="modal-actions">
+                            <button class="btn btn-outline" id="confirmCancel">取消</button>
+                            <button class="btn btn-danger" id="confirmOk">删除</button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modalContainer').appendChild(overlay);
+                const cleanup = () => { overlay.remove(); };
+                overlay.querySelector('#confirmCancel').addEventListener('click', () => { cleanup(); resolve(false); });
+                overlay.querySelector('#confirmOk').addEventListener('click', () => { cleanup(); resolve(true); });
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) { cleanup(); resolve(false); } });
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 从内存索引获取记事总数（不用遍历分片）
+        function getTopicNoteCount(topicId) {
+            return data.notesIndex.filter(n => n.topicId === topicId).length;
+        }
+
+        function getGroupNoteCount(groupId) {
+            const group = data.groups.find(g => g.id === groupId);
+            if (!group) return 0;
+            const topicIds = new Set(group.topics.map(t => t.id));
+            return data.notesIndex.filter(n => topicIds.has(n.topicId)).length;
+        }
+
+        function getTopicLastDate(topicId) {
+            const notes = data.notesIndex.filter(n => n.topicId === topicId);
+            if (notes.length === 0) return null;
+            return Math.max(...notes.map(n => n.createdAt));
+        }
+
+        function getTopicGroup(topicId) {
+            for (const g of data.groups) {
+                const t = g.topics.find(t => t.id === topicId);
+                if (t) return { group: g, topic: t };
+            }
+            return null;
+        }
+
+        function getNotesByTopic(topicId) {
+            return data.notes.filter(n => n.topicId === topicId).sort((a, b) => b.createdAt - a.createdAt);
+        }
+
+        function ensureDataIntegrity() {
+            if (!data.groups.some(g => g.isDefault)) {
+                if (data.groups.length > 0) data.groups[0].isDefault = true;
+                else data.groups.push({ id: 'default_group', name: '默认分组', isDefault: true, topics: [] });
+            }
+            const validTopicIds = new Set();
+            data.groups.forEach(g => g.topics.forEach(t => validTopicIds.add(t.id)));
+            const validGroupIds = new Set(data.groups.map(g => g.id));
+
+            // 清理内存中无效的记事（但分片可能还在，这里只清理内存和索引）
+            const cleanedNotes = [];
+            const cleanedIndex = [];
+            for (const n of data.notes) {
+                if (validTopicIds.has(n.topicId) && validGroupIds.has(n.groupId)) {
+                    // 清理无效 mentions
+                    if (n.mentions) {
+                        n.mentions = n.mentions.filter(id => validTopicIds.has(id));
+                    } else {
+                        n.mentions = [];
+                    }
+                    if (n.sourceTopicId && !validTopicIds.has(n.sourceTopicId)) {
+                        n.sourceTopicId = null;
+                    }
+                    cleanedNotes.push(n);
+                } else {
+                    // 删除无效分片
+                    storage.remove(NOTE_PREFIX + n.id);
+                }
+            }
+            data.notes = cleanedNotes;
+            // 重建索引
+            data.notesIndex = data.notes.map(n => ({
+                id: n.id,
+                groupId: n.groupId,
+                topicId: n.topicId,
+                createdAt: n.createdAt
+            }));
+        }
+
+        // ==================== 排序 ====================
+        const pinyinCollator = new Intl.Collator('zh-Hans-CN', { sensitivity: 'base' });
+
+        function sortTopics(topics, mode) {
+            const arr = [...topics];
+            if (mode === 'count') {
+                return arr.sort((a, b) => {
+                    const ca = getTopicNoteCount(a.id);
+                    const cb = getTopicNoteCount(b.id);
+                    if (cb !== ca) return cb - ca;
+                    return pinyinCollator.compare(a.name, b.name);
+                });
+            }
+            if (mode === 'pinyin') {
+                return arr.sort((a, b) => pinyinCollator.compare(a.name, b.name));
+            }
+            return arr;
+        }
+
+        function sortGroups(groups, mode) {
+            const arr = [...groups];
+            if (mode === 'count') {
+                return arr.sort((a, b) => {
+                    const ca = getGroupNoteCount(a.id);
+                    const cb = getGroupNoteCount(b.id);
+                    if (cb !== ca) return cb - ca;
+                    return pinyinCollator.compare(a.name, b.name);
+                });
+            }
+            if (mode === 'pinyin') {
+                return arr.sort((a, b) => pinyinCollator.compare(a.name, b.name));
+            }
+            return arr;
+        }
+
+        // ==================== 导出 ====================
+        function exportAllData() {
+            const exportData = {
+                version: '4.0',
+                exportedAt: new Date().toISOString(),
+                announcement: data.announcement,
+                groups: data.groups.map(g => ({
+                    id: g.id, name: g.name, isDefault: g.isDefault,
+                    topics: g.topics.map(t => ({
+                        id: t.id, name: t.name,
+                        notes: data.notes.filter(n => n.topicId === t.id)
+                            .sort((a, b) => a.createdAt - b.createdAt)
+                            .map(n => ({
+                                id: n.id, content: n.content, createdAt: n.createdAt,
+                                mentions: n.mentions || [],
+                                sourceTopicId: n.sourceTopicId || null
+                            }))
+                    }))
+                })),
+                preferences: data.preferences
+            };
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const fileName = `记事本备份_${formatDateOnly(Date.now())}.json`;
+
+            if (typeof plus !== 'undefined' && plus.io) {
+                try {
+                    plus.io.requestFileSystem(plus.io.PUBLIC_DOWNLOADS, function(fs) {
+                        fs.root.getFile(fileName, { create: true }, function(fileEntry) {
+                            fileEntry.createWriter(function(writer) {
+                                writer.onwrite = function() {
+                                    showToast('导出成功，文件已保存到手机下载目录');
+                                };
+                                writer.onerror = function(e) {
+                                    console.error('写入失败', e);
+                                    fallbackExportApp(jsonStr, fileName);
+                                };
+                                writer.write(jsonStr);
+                            }, function(e) {
+                                console.error('创建写入器失败', e);
+                                fallbackExportApp(jsonStr, fileName);
+                            });
+                        }, function(e) {
+                            console.error('创建文件失败', e);
+                            fallbackExportApp(jsonStr, fileName);
+                        });
+                    }, function(e) {
+                        console.error('请求文件系统失败', e);
+                        fallbackExportApp(jsonStr, fileName);
+                    });
+                } catch (e) {
+                    console.error('导出异常', e);
+                    fallbackExportApp(jsonStr, fileName);
+                }
+            } else {
+                try {
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    showToast('导出成功，文件已下载');
+                } catch (e) {
+                    console.error('导出失败', e);
+                    showExportTextModal(jsonStr);
+                }
+            }
+        }
+
+        function fallbackExportApp(jsonStr, fileName) {
+            try {
+                plus.io.requestFileSystem(plus.io.PRIVATE_DOC, function(fs) {
+                    fs.root.getFile(fileName, { create: true }, function(fileEntry) {
+                        fileEntry.createWriter(function(writer) {
+                            writer.onwrite = function() {
+                                showToast('导出成功，文件保存在应用私有目录');
+                            };
+                            writer.onerror = function() {
+                                showExportTextModal(jsonStr);
+                            };
+                            writer.write(jsonStr);
+                        });
+                    }, function() {
+                        showExportTextModal(jsonStr);
+                    });
+                }, function() {
+                    showExportTextModal(jsonStr);
+                });
+            } catch (e) {
+                showExportTextModal(jsonStr);
+            }
+        }
+
+        function showExportTextModal(jsonStr) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:500px;">
+                    <h3>📤 导出数据</h3>
+                    <p style="font-size:0.82rem;color:var(--text-light);margin-bottom:8px;">
+                        自动保存失败，请长按下方文本全选复制，粘贴到备忘录或文件中保存。
+                    </p>
+                    <textarea id="exportText" style="min-height:200px;font-size:0.75rem;" readonly>${escapeHtml(jsonStr)}</textarea>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="exportClose">关闭</button>
+                        <button class="btn btn-primary" id="exportCopy">复制全部</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            const textarea = overlay.querySelector('#exportText');
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#exportClose').onclick = cleanup;
+            overlay.querySelector('#exportCopy').onclick = () => {
+                textarea.select();
+                textarea.setSelectionRange(0, 999999);
+                try {
+                    document.execCommand('copy');
+                    showToast('已复制到剪贴板');
+                } catch (e) {
+                    showToast('复制失败，请手动长按选择');
+                }
+            };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        // ==================== 导入 ====================
+        function importDataFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!imported.groups || !Array.isArray(imported.groups)) throw new Error('格式错误');
+                    showImportOptionsModal(imported);
+                } catch (err) {
+                    showToast('导入失败：文件格式不正确');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showImportOptionsModal(importedData) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>📥 导入选项</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">
+                        文件包含 ${importedData.groups.reduce((s, g) => s + g.topics.length, 0)} 个主题，请选择导入方式：
+                    </p>
+                    <div class="import-option" id="importMerge">
+                        <div class="import-option-title">🔀 合并导入</div>
+                        <div class="import-option-desc">保留现有数据，追加导入内容，重名主题自动加后缀。</div>
+                    </div>
+                    <div class="import-option" id="importReplace">
+                        <div class="import-option-title">🔄 覆盖导入</div>
+                        <div class="import-option-desc">清空所有现有数据，完全替换为导入文件内容。</div>
+                    </div>
+                    <div class="modal-actions" style="margin-top:16px;">
+                        <button class="btn btn-outline" id="importCancel">取消</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#importCancel').onclick = cleanup;
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+            overlay.querySelector('#importMerge').onclick = () => { cleanup(); performImport(importedData, 'merge'); };
+            overlay.querySelector('#importReplace').onclick = () => { cleanup(); performImport(importedData, 'replace'); };
+        }
+
+        function performImport(importedData, mode) {
+            try {
+                if (mode === 'replace') {
+                    // 清空所有记事分片
+                    clearAllNotes();
+
+                    // 重建 groups / announcement / preferences
+                    const newGroups = [];
+                    const oldToNew = {};
+                    importedData.groups.forEach(ig => {
+                        const ng = { id: ig.id || generateId(), name: ig.name || '未命名分组', isDefault: ig.isDefault || false, topics: [] };
+                        (ig.topics || []).forEach(it => {
+                            const nid = it.id || generateId();
+                            oldToNew[it.id] = nid;
+                            ng.topics.push({ id: nid, name: it.name || '未命名主题' });
+                        });
+                        newGroups.push(ng);
+                    });
+                    if (!newGroups.some(g => g.isDefault)) {
+                        if (newGroups.length > 0) newGroups[0].isDefault = true;
+                        else newGroups.push({ id: 'default_group', name: '默认分组', isDefault: true, topics: [] });
+                    }
+                    data.groups = newGroups;
+                    data.announcement = importedData.announcement || { current: '', history: [] };
+                    if (importedData.preferences) {
+                        data.preferences = Object.assign(data.preferences, importedData.preferences);
+                    }
+
+                    // 批量写入记事分片
+                    const newNotes = [];
+                    importedData.groups.forEach(ig => {
+                        const ng = newGroups.find(g => g.name === ig.name) || newGroups[0];
+                        (ig.topics || []).forEach(it => {
+                            const nid = oldToNew[it.id];
+                            (it.notes || []).forEach(n => {
+                                newNotes.push({
+                                    id: generateId(),
+                                    groupId: ng.id,
+                                    topicId: nid,
+                                    content: n.content,
+                                    createdAt: n.createdAt || Date.now(),
+                                    mentions: (n.mentions || []).map(m => oldToNew[m]).filter(Boolean),
+                                    sourceTopicId: n.sourceTopicId ? (oldToNew[n.sourceTopicId] || null) : null
+                                });
+                            });
+                        });
+                    });
+                    saveNotesBatch(newNotes);
+                    saveMeta();
+                    saveNotesIndex();
+                } else {
+                    // 合并导入：先把所有旧记事读进内存
+                    const existingNotes = [...data.notes];
+
+                    importedData.groups.forEach(ig => {
+                        let tg = data.groups.find(g => g.name === ig.name);
+                        if (!tg) {
+                            tg = { id: generateId(), name: ig.name || '导入分组', isDefault: false, topics: [] };
+                            data.groups.push(tg);
+                        }
+                        (ig.topics || []).forEach(it => {
+                            let baseName = it.name || '未命名主题';
+                            let finalName = baseName;
+                            let c = 1;
+                            while (tg.topics.some(t => t.name === finalName)) { finalName = baseName + '_' + c; c++; }
+                            const nid = generateId();
+                            tg.topics.push({ id: nid, name: finalName });
+                            (it.notes || []).forEach(n => {
+                                const note = {
+                                    id: generateId(),
+                                    groupId: tg.id,
+                                    topicId: nid,
+                                    content: n.content,
+                                    createdAt: n.createdAt || Date.now(),
+                                    mentions: [],
+                                    sourceTopicId: null
+                                };
+                                saveNote(note);
+                            });
+                        });
+                    });
+                    if (importedData.announcement) {
+                        if (importedData.announcement.history) {
+                            data.announcement.history = [...importedData.announcement.history, ...data.announcement.history];
+                        }
+                        if (importedData.announcement.current && !data.announcement.current) {
+                            data.announcement.current = importedData.announcement.current;
+                        }
+                    }
+                    saveMeta();
+                    saveNotesIndex();
+                }
+                ensureDataIntegrity();
+                saveMeta();
+                saveNotesIndex();
+                switchView('home');
+                closeDrawer();
+                showToast('导入成功');
+            } catch (err) {
+                console.error(err);
+                showToast('导入失败：数据格式错误');
+            }
+        }
+
+        // ==================== 状态 ====================
+        let currentView = 'home';
+        let currentGroupId = null;
+        let currentTopicId = null;
+        let currentNotesPage = 1;
+        const NOTES_PER_PAGE = 20;
+        let searchKeyword = '';
+        let pendingMentions = new Set();
+
+        const homeView = document.getElementById('homeView');
+        const topicsView = document.getElementById('topicsView');
+        const notesView = document.getElementById('notesView');
+        const searchView = document.getElementById('searchView');
+        const batchView = document.getElementById('batchView');
+        const searchInput = document.getElementById('searchInput');
+        const fabHomeBtn = document.getElementById('fabHomeBtn');
+        const drawer = document.getElementById('drawer');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+        const mentionPreviewEl = document.getElementById('mentionPreview');
+        const mentionBtn = document.getElementById('mentionBtn');
+
+        function updateFabVisibility() {
+            if (currentView === 'home') fabHomeBtn.classList.add('hidden');
+            else fabHomeBtn.classList.remove('hidden');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            homeView.classList.add('hidden');
+            topicsView.classList.add('hidden');
+            notesView.classList.add('hidden');
+            searchView.classList.add('hidden');
+            batchView.classList.add('hidden');
+
+            if (view === 'home') {
+                homeView.classList.remove('hidden');
+                searchInput.value = '';
+                searchKeyword = '';
+            } else if (view === 'topics') {
+                topicsView.classList.remove('hidden');
+                const group = data.groups.find(g => g.id === currentGroupId);
+                document.getElementById('topicsGroupName').textContent = group ? group.name : '主题列表';
+            } else if (view === 'notes') {
+                notesView.classList.remove('hidden');
+                const group = data.groups.find(g => g.id === currentGroupId);
+                const topic = group ? group.topics.find(t => t.id === currentTopicId) : null;
+                document.getElementById('notesTopicName').textContent = topic ? topic.name : '记事';
+
+                const groupBadge = document.getElementById('notesGroupBadge');
+                if (group) {
+                    groupBadge.textContent = '📂 ' + group.name;
+                    groupBadge.classList.remove('empty');
+                    groupBadge.onclick = () => {
+                        currentGroupId = group.id;
+                        switchView('topics');
+                    };
+                } else {
+                    groupBadge.classList.add('empty');
+                    groupBadge.onclick = null;
+                }
+
+                document.getElementById('newNoteContent').value = '';
+                pendingMentions.clear();
+                renderMentionPreview();
+                updateMentionBtnState();
+            } else if (view === 'search') {
+                searchView.classList.remove('hidden');
+            } else if (view === 'batch') {
+                batchView.classList.remove('hidden');
+                initBatchView();
+            }
+
+            updateFabVisibility();
+
+            if (view === 'home') renderHome();
+            if (view === 'topics') renderTopics();
+            if (view === 'notes') renderNotes();
+            if (view === 'search') renderSearchResults();
+        }
+
+        function renderSortToggle(el, current) {
+            el.querySelectorAll('button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sort === current);
+            });
+        }
+
+        function openDrawer() {
+            renderDrawerGroups();
+            renderSortToggle(document.getElementById('drawerSortToggle'), data.preferences.drawerSort);
+            document.getElementById('mentionCopyMode').checked = !!data.preferences.mentionCopyMode;
+            drawer.classList.add('open');
+            drawerOverlay.classList.add('open');
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            drawerOverlay.classList.remove('open');
+        }
+
+        function renderDrawerGroups() {
+            const container = document.getElementById('drawerGroupList');
+            const sorted = sortGroups(data.groups, data.preferences.drawerSort);
+            container.innerHTML = sorted.map(g => {
+                const isActive = (currentView === 'topics' && g.id === currentGroupId);
+                const count = getGroupNoteCount(g.id);
+                return `
+                    <div class="drawer-group-item ${isActive ? 'active' : ''}" data-id="${g.id}">
+                        <span>
+                            ${escapeHtml(g.name)}
+                            ${g.isDefault ? '<span class="drawer-default-badge">默认</span>' : ''}
+                        </span>
+                        <span class="g-count">${count} 条</span>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.drawer-group-item').forEach(el => {
+                el.onclick = () => {
+                    currentGroupId = el.dataset.id;
+                    closeDrawer();
+                    switchView('topics');
+                };
+            });
+        }
+
+        function renderAnnouncement() {
+            const el = document.getElementById('announcementContent');
+            if (data.announcement.current && data.announcement.current.trim()) {
+                el.textContent = data.announcement.current;
+            } else {
+                el.innerHTML = '<span class="announcement-empty">暂无公告</span>';
+            }
+        }
+
+        function renderHome() {
+            ensureDataIntegrity();
+            renderAnnouncement();
+            renderSortToggle(document.getElementById('homeTopicSortToggle'), data.preferences.topicSort);
+
+            const defaultGroup = data.groups.find(g => g.isDefault);
+            const grid = document.getElementById('defaultTopicsGrid');
+            if (!defaultGroup || defaultGroup.topics.length === 0) {
+                grid.innerHTML = '<div class="empty-tip" style="grid-column:1/-1;">暂无主题，请在左侧菜单中管理分组</div>';
+            } else {
+                const topics = sortTopics(defaultGroup.topics, data.preferences.topicSort);
+                grid.innerHTML = topics.map(topic => {
+                    const count = getTopicNoteCount(topic.id);
+                    return `
+                        <div class="topic-grid-item" data-topic-id="${topic.id}" data-group-id="${defaultGroup.id}">
+                            <span class="topic-grid-name">${escapeHtml(topic.name)}</span>
+                            ${count > 0 ? `<span class="topic-count-badge">${count}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            grid.querySelectorAll('.topic-grid-item').forEach(el => {
+                el.onclick = () => {
+                    currentGroupId = el.dataset.groupId;
+                    currentTopicId = el.dataset.topicId;
+                    currentNotesPage = 1;
+                    switchView('notes');
+                };
+            });
+        }
+
+        function renderTopics() {
+            const group = data.groups.find(g => g.id === currentGroupId);
+            if (!group) { switchView('home'); return; }
+            document.getElementById('topicsGroupName').textContent = group.name;
+            renderSortToggle(document.getElementById('topicSortToggle'), data.preferences.topicSort);
+
+            const container = document.getElementById('topicsList');
+            if (group.topics.length === 0) {
+                container.innerHTML = '<div class="empty-tip">暂无主题，点击右上角新建</div>';
+            } else {
+                const topics = sortTopics(group.topics, data.preferences.topicSort);
+                container.innerHTML = topics.map(topic => {
+                    const count = getTopicNoteCount(topic.id);
+                    const lastDate = getTopicLastDate(topic.id);
+                    return `
+                        <div class="topic-item" data-topic-id="${topic.id}">
+                            <div class="topic-item-left">
+                                <span class="topic-name">${escapeHtml(topic.name)}</span>
+                                <div class="topic-meta">
+                                    <span>📝 ${count} 条</span>
+                                    ${lastDate ? `<span>🕐 ${formatDateOnly(lastDate)}</span>` : '<span>🕐 无记录</span>'}
+                                </div>
+                            </div>
+                            <div class="topic-actions">
+                                <button class="icon-btn edit-topic" data-id="${topic.id}">✏️</button>
+                                <button class="icon-btn delete-topic" data-id="${topic.id}">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            container.querySelectorAll('.topic-item').forEach(el => {
+                el.onclick = (e) => {
+                    if (e.target.closest('.icon-btn')) return;
+                    currentTopicId = el.dataset.topicId;
+                    currentNotesPage = 1;
+                    switchView('notes');
+                };
+            });
+            container.querySelectorAll('.edit-topic').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const topic = group.topics.find(t => t.id === btn.dataset.id);
+                    if (topic) showEditTopicModal(group, topic);
+                };
+            });
+            container.querySelectorAll('.delete-topic').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const topic = group.topics.find(t => t.id === btn.dataset.id);
+                    if (!topic) return;
+                    const ok = await confirmDelete(`确定删除主题「${topic.name}」及其下所有记事吗？`);
+                    if (ok) {
+                        // 删除该主题下所有记事分片
+                        const notesToDelete = data.notes.filter(n => n.topicId === topic.id);
+                        notesToDelete.forEach(n => deleteNote(n.id));
+                        group.topics = group.topics.filter(t => t.id !== topic.id);
+                        saveMeta();
+                        renderTopics();
+                        showToast('主题已删除');
+                    }
+                };
+            });
+        }
+
+        function renderNotes() {
+            const group = data.groups.find(g => g.id === currentGroupId);
+            if (!group) { switchView('home'); return; }
+            const topic = group.topics.find(t => t.id === currentTopicId);
+            if (!topic) { switchView('topics'); return; }
+            document.getElementById('notesTopicName').textContent = topic.name;
+
+            const container = document.getElementById('notesList');
+            const topicNotes = getNotesByTopic(topic.id);
+            const total = topicNotes.length;
+            const totalPages = Math.max(1, Math.ceil(total / NOTES_PER_PAGE));
+            if (currentNotesPage > totalPages) currentNotesPage = totalPages;
+            const pageNotes = topicNotes.slice((currentNotesPage - 1) * NOTES_PER_PAGE, currentNotesPage * NOTES_PER_PAGE);
+
+            if (pageNotes.length === 0) {
+                container.innerHTML = '<div class="empty-tip">暂无记事，在上方输入框添加</div>';
+            } else {
+                container.innerHTML = pageNotes.map(note => {
+                    let mentionsHtml = '';
+                    if (note.mentions && note.mentions.length > 0) {
+                        const chips = note.mentions.map(mid => {
+                            const info = getTopicGroup(mid);
+                            if (!info) return '';
+                            return `<span class="note-mention-chip" data-topic-id="${mid}" data-group-id="${info.group.id}">@${escapeHtml(info.topic.name)}</span>`;
+                        }).filter(Boolean).join('');
+                        if (chips) mentionsHtml = `<div class="note-mentions">${chips}</div>`;
+                    }
+                    let sourceHint = '';
+                    if (note.sourceTopicId) {
+                        const info = getTopicGroup(note.sourceTopicId);
+                        if (info) {
+                            sourceHint = `<div style="font-size:0.7rem;color:var(--text-light);margin-bottom:4px;">↩ 来自 @${escapeHtml(info.topic.name)} 的复制</div>`;
+                        }
+                    }
+                    return `
+                        <div class="note-item" data-note-id="${note.id}">
+                            <div class="note-item-header">
+                                <span class="note-date">${formatFullTime(note.createdAt)}</span>
+                                <div class="note-actions">
+                                    <button class="btn btn-sm btn-outline edit-note" data-id="${note.id}">编辑</button>
+                                    <button class="btn btn-sm btn-danger delete-note" data-id="${note.id}">删除</button>
+                                </div>
+                            </div>
+                            ${sourceHint}
+                            <div class="note-content">${escapeHtml(note.content)}</div>
+                            ${mentionsHtml}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const pagination = document.getElementById('notesPagination');
+            if (totalPages > 1) {
+                pagination.innerHTML = `
+                    <button class="page-btn" id="prevPage" ${currentNotesPage <= 1 ? 'disabled' : ''}>上一页</button>
+                    <span class="page-info">${currentNotesPage} / ${totalPages}</span>
+                    <button class="page-btn" id="nextPage" ${currentNotesPage >= totalPages ? 'disabled' : ''}>下一页</button>
+                `;
+                pagination.querySelector('#prevPage').onclick = () => { if (currentNotesPage > 1) { currentNotesPage--; renderNotes(); } };
+                pagination.querySelector('#nextPage').onclick = () => { if (currentNotesPage < totalPages) { currentNotesPage++; renderNotes(); } };
+            } else {
+                pagination.innerHTML = '';
+            }
+
+            container.querySelectorAll('.note-mention-chip').forEach(chip => {
+                chip.onclick = () => {
+                    currentGroupId = chip.dataset.groupId;
+                    currentTopicId = chip.dataset.topicId;
+                    currentNotesPage = 1;
+                    switchView('notes');
+                };
+            });
+
+            container.querySelectorAll('.edit-note').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const note = data.notes.find(n => n.id === btn.dataset.id);
+                    if (note) showNoteContentModal(note, note.groupId, note.topicId);
+                };
+            });
+            container.querySelectorAll('.delete-note').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const note = data.notes.find(n => n.id === btn.dataset.id);
+                    if (!note) return;
+                    const ok = await confirmDelete('确定删除这条记事吗？');
+                    if (ok) {
+                        deleteNote(note.id);
+                        renderNotes();
+                        showToast('已删除');
+                    }
+                };
+            });
+
+            renderBacklinks(topic.id);
+        }
+
+        function renderBacklinks(topicId) {
+            const section = document.getElementById('backlinkSection');
+            const listEl = document.getElementById('backlinkList');
+
+            const backlinks = data.notes.filter(n =>
+                n.topicId !== topicId &&
+                n.mentions && n.mentions.includes(topicId)
+            ).sort((a, b) => b.createdAt - a.createdAt);
+
+            if (backlinks.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            listEl.innerHTML = backlinks.map(note => {
+                const info = getTopicGroup(note.topicId);
+                const sourceName = info ? info.topic.name : '未知主题';
+                return `
+                    <div class="backlink-item">
+                        <div class="backlink-source" data-topic-id="${note.topicId}" data-group-id="${info ? info.group.id : ''}">
+                            🔗 来自「${escapeHtml(sourceName)}」
+                        </div>
+                        <div class="backlink-content">${escapeHtml(note.content)}</div>
+                        <div class="backlink-date">${formatFullTime(note.createdAt)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            listEl.querySelectorAll('.backlink-source').forEach(el => {
+                el.onclick = () => {
+                    if (!el.dataset.groupId) return;
+                    currentGroupId = el.dataset.groupId;
+                    currentTopicId = el.dataset.topicId;
+                    currentNotesPage = 1;
+                    switchView('notes');
+                };
+            });
+        }
+
+        function renderSearchResults() {
+            const container = document.getElementById('searchResultsList');
+            const kw = searchKeyword.trim().toLowerCase();
+            if (!kw) { container.innerHTML = '<div class="empty-tip">输入关键词搜索</div>'; return; }
+
+            const noteResults = data.notes.filter(n => n.content.toLowerCase().includes(kw))
+                .sort((a, b) => b.createdAt - a.createdAt);
+
+            const topicResults = [];
+            data.groups.forEach(g => {
+                g.topics.forEach(t => {
+                    if (t.name.toLowerCase().includes(kw)) {
+                        topicResults.push({ topic: t, group: g });
+                    }
+                });
+            });
+
+            if (noteResults.length === 0 && topicResults.length === 0) {
+                container.innerHTML = '<div class="empty-tip">没有找到匹配的记事或主题</div>';
+                return;
+            }
+
+            let html = '';
+
+            if (topicResults.length > 0) {
+                html += `<div class="search-section-label">📝 主题（${topicResults.length}）</div>`;
+                html += topicResults.map(item => {
+                    const count = getTopicNoteCount(item.topic.id);
+                    return `
+                        <div class="topic-item" style="margin-bottom:6px;">
+                            <div class="topic-item-left">
+                                <span class="topic-name">${escapeHtml(item.topic.name)}</span>
+                                <div class="topic-meta">
+                                    <span>📂 ${escapeHtml(item.group.name)}</span>
+                                    <span>📝 ${count} 条</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-primary search-goto-topic"
+                                    data-topic-id="${item.topic.id}"
+                                    data-group-id="${item.group.id}">↗ 直达</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            if (noteResults.length > 0) {
+                html += `<div class="search-section-label">✍️ 记事（${noteResults.length}）</div>`;
+                html += noteResults.map(note => {
+                    const group = data.groups.find(g => g.id === note.groupId);
+                    const topic = group ? group.topics.find(t => t.id === note.topicId) : null;
+                    const groupName = group ? group.name : '未知分组';
+                    const topicName = topic ? topic.name : '未知主题';
+                    return `
+                        <div class="note-item" data-note-id="${note.id}">
+                            <div class="note-item-header">
+                                <span class="note-date">${formatFullTime(note.createdAt)}</span>
+                                <div class="note-actions">
+                                    <button class="btn btn-sm btn-primary search-goto-topic"
+                                            data-topic-id="${note.topicId}"
+                                            data-group-id="${note.groupId}">↗ 直达</button>
+                                    <button class="btn btn-sm btn-outline edit-note" data-id="${note.id}">编辑</button>
+                                    <button class="btn btn-sm btn-danger delete-note" data-id="${note.id}">删除</button>
+                                </div>
+                            </div>
+                            <div style="font-size:0.72rem;color:var(--text-light);margin-bottom:4px;">
+                                📂 ${escapeHtml(groupName)} · 📝 ${escapeHtml(topicName)}
+                            </div>
+                            <div class="note-content">${escapeHtml(note.content)}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            container.innerHTML = html;
+
+            container.querySelectorAll('.search-goto-topic').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    currentGroupId = btn.dataset.groupId;
+                    currentTopicId = btn.dataset.topicId;
+                    currentNotesPage = 1;
+                    searchKeyword = '';
+                    searchInput.value = '';
+                    switchView('notes');
+                };
+            });
+
+            container.querySelectorAll('.edit-note').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const note = data.notes.find(n => n.id === btn.dataset.id);
+                    if (note) showNoteContentModal(note, note.groupId, note.topicId);
+                };
+            });
+            container.querySelectorAll('.delete-note').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const note = data.notes.find(n => n.id === btn.dataset.id);
+                    if (!note) return;
+                    const ok = await confirmDelete('确定删除这条记事吗？');
+                    if (ok) {
+                        deleteNote(note.id);
+                        renderSearchResults();
+                        showToast('已删除');
+                    }
+                };
+            });
+        }
+
+        function updateMentionBtnState() {
+            if (pendingMentions.size > 0) {
+                mentionBtn.classList.add('active');
+                mentionBtn.textContent = `@ 关联主题 (${pendingMentions.size})`;
+            } else {
+                mentionBtn.classList.remove('active');
+                mentionBtn.textContent = '@ 关联主题';
+            }
+        }
+
+        function renderMentionPreview() {
+            if (pendingMentions.size === 0) {
+                mentionPreviewEl.innerHTML = '';
+                return;
+            }
+            const chips = [];
+            pendingMentions.forEach(mid => {
+                const info = getTopicGroup(mid);
+                if (info) {
+                    chips.push(`<span class="mention-chip">@${escapeHtml(info.topic.name)}<span class="remove-x" data-id="${mid}">×</span></span>`);
+                }
+            });
+            mentionPreviewEl.innerHTML = chips.join('');
+            mentionPreviewEl.querySelectorAll('.remove-x').forEach(x => {
+                x.onclick = () => {
+                    pendingMentions.delete(x.dataset.id);
+                    renderMentionPreview();
+                    updateMentionBtnState();
+                };
+            });
+        }
+
+        function openMentionPanelForSet(targetSet, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'mention-panel';
+
+            let defaultGroupId = currentGroupId;
+            if (!defaultGroupId && data.groups.length > 0) defaultGroupId = data.groups[0].id;
+
+            overlay.innerHTML = `
+                <div class="mention-panel-inner">
+                    <div class="mention-panel-header">
+                        <h3>@ 选择要关联的主题</h3>
+                        <button class="close-x" id="mentionPanelClose">✕</button>
+                    </div>
+                    <select class="mention-group-select" id="mentionGroupSelect">
+                        ${data.groups.map(g =>
+                            `<option value="${g.id}" ${g.id === defaultGroupId ? 'selected' : ''}>${escapeHtml(g.name)}</option>`
+                        ).join('')}
+                    </select>
+                    <div class="mention-topic-grid" id="mentionTopicGrid"></div>
+                    <div class="mention-panel-footer">
+                        <span class="selected-count" id="mentionSelectedCount">已选 ${targetSet.size} 个</span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-sm btn-outline" id="mentionPanelClear">清空</button>
+                            <button class="btn btn-sm btn-primary" id="mentionPanelConfirm">确定</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const groupSelect = overlay.querySelector('#mentionGroupSelect');
+            const topicGrid = overlay.querySelector('#mentionTopicGrid');
+            const selectedCount = overlay.querySelector('#mentionSelectedCount');
+
+            function renderMentionTopics() {
+                const gid = groupSelect.value;
+                const group = data.groups.find(g => g.id === gid);
+                if (!group || group.topics.length === 0) {
+                    topicGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-light);padding:20px 0;font-size:0.85rem;">该分组暂无主题</div>';
+                    return;
+                }
+                topicGrid.innerHTML = group.topics.map(t => {
+                    const selected = targetSet.has(t.id);
+                    return `<div class="mention-topic-item ${selected ? 'selected' : ''}" data-topic-id="${t.id}">${escapeHtml(t.name)}</div>`;
+                }).join('');
+
+                topicGrid.querySelectorAll('.mention-topic-item').forEach(item => {
+                    item.onclick = () => {
+                        const tid = item.dataset.topicId;
+                        if (targetSet.has(tid)) targetSet.delete(tid);
+                        else targetSet.add(tid);
+                        renderMentionTopics();
+                        selectedCount.textContent = `已选 ${targetSet.size} 个`;
+                    };
+                });
+            }
+
+            renderMentionTopics();
+            groupSelect.onchange = renderMentionTopics;
+
+            overlay.querySelector('#mentionPanelClear').onclick = () => {
+                targetSet.clear();
+                renderMentionTopics();
+                selectedCount.textContent = '已选 0 个';
+            };
+
+            overlay.querySelector('#mentionPanelConfirm').onclick = () => {
+                overlay.remove();
+                if (onConfirm) onConfirm();
+            };
+
+            overlay.querySelector('#mentionPanelClose').onclick = () => overlay.remove();
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        mentionBtn.onclick = () => openMentionPanelForSet(pendingMentions, () => {
+            renderMentionPreview();
+            updateMentionBtnState();
+        });
+
+        // ==================== 公告操作 ====================
+        document.getElementById('addAnnouncementBtn').onclick = () => {
+            if (data.announcement.current && data.announcement.current.trim()) {
+                data.announcement.history.unshift({ content: data.announcement.current, createdAt: Date.now() });
+                data.announcement.current = '';
+                saveMeta();
+                renderAnnouncement();
+            }
+            showAnnouncementEditModal(null);
+        };
+
+        document.getElementById('editAnnouncementBtn').onclick = () => {
+            if (!data.announcement.current || !data.announcement.current.trim()) { showToast('暂无公告可编辑'); return; }
+            data.announcement.history.unshift({ content: data.announcement.current, createdAt: Date.now() });
+            const oldContent = data.announcement.current;
+            data.announcement.current = '';
+            saveMeta();
+            renderAnnouncement();
+            showAnnouncementEditModal(oldContent);
+        };
+
+        document.getElementById('deleteAnnouncementBtn').onclick = async () => {
+            if (!data.announcement.current || !data.announcement.current.trim()) { showToast('暂无公告可删除'); return; }
+            const ok = await confirmDelete('确定删除当前公告吗？历史记录会保留。');
+            if (ok) {
+                data.announcement.history.unshift({ content: data.announcement.current, createdAt: Date.now() });
+                data.announcement.current = '';
+                saveMeta();
+                renderAnnouncement();
+                showToast('公告已删除，历史记录已保存');
+            }
+        };
+
+        document.getElementById('historyAnnouncementBtn').onclick = () => showAnnouncementHistoryModal();
+
+        function showAnnouncementEditModal(content) {
+            const isEdit = content !== null && content !== undefined;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>${isEdit ? '编辑公告' : '添加公告'}</h3>
+                    <textarea id="announcementText" placeholder="输入公告内容...">${isEdit ? escapeHtml(content) : ''}</textarea>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="annCancel">取消</button>
+                        <button class="btn btn-primary" id="annSave">保存</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            overlay.querySelector('#announcementText').focus();
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#annCancel').onclick = () => { cleanup(); renderAnnouncement(); };
+            overlay.querySelector('#annSave').onclick = () => {
+                const text = overlay.querySelector('#announcementText').value.trim();
+                if (!text) { showToast('公告内容不能为空'); return; }
+                data.announcement.current = text;
+                saveMeta();
+                cleanup();
+                renderAnnouncement();
+                showToast(isEdit ? '公告已更新' : '公告已添加');
+            };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        function showAnnouncementHistoryModal() {
+            const history = data.announcement.history;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            let html = '';
+            if (!history || history.length === 0) {
+                html = '<div class="history-empty">暂无历史公告</div>';
+            } else {
+                html = history.map(item => `
+                    <div class="history-item">
+                        <div class="history-date">${formatFullTime(item.createdAt || Date.now())}</div>
+                        <div class="history-content">${escapeHtml(item.content || '')}</div>
+                    </div>
+                `).join('');
+            }
+            overlay.innerHTML = `
+                <div class="modal" style="max-width:450px;">
+                    <h3>📜 历史公告</h3>
+                    <div style="max-height:60vh;overflow-y:auto;margin-bottom:12px;">${html}</div>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="historyClose">关闭</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#historyClose').onclick = cleanup;
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        function showEditTopicModal(group, topic = null) {
+            const isEdit = !!topic;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>${isEdit ? '编辑主题' : '新建主题'}</h3>
+                    <input type="text" id="topicName" placeholder="输入主题名称" value="${isEdit ? escapeHtml(topic.name) : ''}">
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="topicCancel">取消</button>
+                        <button class="btn btn-primary" id="topicSave">保存</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            overlay.querySelector('#topicName').focus();
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#topicCancel').onclick = cleanup;
+            overlay.querySelector('#topicSave').onclick = () => {
+                const name = overlay.querySelector('#topicName').value.trim();
+                if (!name) { showToast('名称不能为空'); return; }
+                if (group.topics.some(t => t.name === name && t.id !== (topic ? topic.id : ''))) { showToast('该分组下已存在同名主题'); return; }
+                if (isEdit) topic.name = name;
+                else group.topics.push({ id: generateId(), name });
+                saveMeta();
+                cleanup();
+                if (currentView === 'home') renderHome();
+                else if (currentView === 'topics') renderTopics();
+                showToast(isEdit ? '主题已更新' : '主题已创建');
+            };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        function showBatchImportModal(group) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>批量导入主题</h3>
+                    <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:8px;">每行一个主题名称，不可与已有主题重复</p>
+                    <textarea id="batchTopics" placeholder="主题1&#10;主题2&#10;主题3"></textarea>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="batchCancel">取消</button>
+                        <button class="btn btn-primary" id="batchSave">导入</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            overlay.querySelector('#batchTopics').focus();
+            const cleanup = () => overlay.remove();
+            overlay.querySelector('#batchCancel').onclick = cleanup;
+            overlay.querySelector('#batchSave').onclick = () => {
+                const lines = overlay.querySelector('#batchTopics').value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+                if (lines.length === 0) { showToast('请输入内容'); return; }
+                let imported = 0, skipped = 0;
+                for (const name of lines) {
+                    if (group.topics.some(t => t.name === name)) { skipped++; continue; }
+                    group.topics.push({ id: generateId(), name });
+                    imported++;
+                }
+                saveMeta();
+                cleanup();
+                if (currentView === 'topics') renderTopics();
+                if (currentView === 'home') renderHome();
+                showToast(`导入 ${imported} 个，跳过 ${skipped} 个重复`);
+            };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        function showNoteContentModal(note, groupId, topicId) {
+            const isEdit = !!note;
+            const currentMentions = new Set(note ? (note.mentions || []) : []);
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>${isEdit ? '编辑记事' : '新建记事'}</h3>
+                    <textarea id="noteContent" placeholder="输入记事内容...">${isEdit ? escapeHtml(note.content) : ''}</textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+                        <button class="mention-btn" id="modalMentionBtn" type="button">@ 关联主题</button>
+                        <div class="mention-preview" id="modalMentionPreview" style="margin-top:0;"></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" id="noteCancel">取消</button>
+                        <button class="btn btn-primary" id="noteSave">保存</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            overlay.querySelector('#noteContent').focus();
+            const cleanup = () => overlay.remove();
+
+            function updateModalMentionUI() {
+                const preview = overlay.querySelector('#modalMentionPreview');
+                if (currentMentions.size === 0) {
+                    preview.innerHTML = '';
+                } else {
+                    preview.innerHTML = Array.from(currentMentions).map(mid => {
+                        const info = getTopicGroup(mid);
+                        return info ? `<span class="mention-chip">@${escapeHtml(info.topic.name)}</span>` : '';
+                    }).join('');
+                }
+                const btn = overlay.querySelector('#modalMentionBtn');
+                if (currentMentions.size > 0) {
+                    btn.classList.add('active');
+                    btn.textContent = `@ 关联主题 (${currentMentions.size})`;
+                } else {
+                    btn.classList.remove('active');
+                    btn.textContent = '@ 关联主题';
+                }
+            }
+
+            updateModalMentionUI();
+
+            overlay.querySelector('#modalMentionBtn').onclick = () => {
+                openMentionPanelForSet(currentMentions, updateModalMentionUI);
+            };
+
+            overlay.querySelector('#noteCancel').onclick = cleanup;
+            overlay.querySelector('#noteSave').onclick = () => {
+                const content = overlay.querySelector('#noteContent').value.trim();
+                if (!content) { showToast('内容不能为空'); return; }
+                const mentionsArr = Array.from(currentMentions);
+                if (isEdit) {
+                    note.content = content;
+                    note.createdAt = Date.now();
+                    note.mentions = mentionsArr;
+                    saveNote(note);
+                } else {
+                    const newNote = {
+                        id: generateId(),
+                        groupId, topicId,
+                        content,
+                        createdAt: Date.now(),
+                        mentions: mentionsArr,
+                        sourceTopicId: null
+                    };
+                    saveNote(newNote);
+                }
+                cleanup();
+                if (currentView === 'home') renderHome();
+                else if (currentView === 'notes') renderNotes();
+                else if (currentView === 'search') renderSearchResults();
+                else if (currentView === 'topics') renderTopics();
+                showToast(isEdit ? '已更新' : '已添加');
+            };
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+        }
+
+        document.getElementById('saveNoteBtn').onclick = () => {
+            const textarea = document.getElementById('newNoteContent');
+            const content = textarea.value.trim();
+            if (!content) { showToast('请输入记事内容'); return; }
+            if (!currentGroupId || !currentTopicId) { showToast('请先选择主题'); return; }
+
+            const mentionsArr = Array.from(pendingMentions);
+            const newNote = {
+                id: generateId(),
+                groupId: currentGroupId,
+                topicId: currentTopicId,
+                content: content,
+                createdAt: Date.now(),
+                mentions: mentionsArr,
+                sourceTopicId: null
+            };
+            saveNote(newNote);
+
+            if (data.preferences.mentionCopyMode && mentionsArr.length > 0) {
+                mentionsArr.forEach(mid => {
+                    if (mid === currentTopicId) return;
+                    const info = getTopicGroup(mid);
+                    if (!info) return;
+                    const copyNote = {
+                        id: generateId(),
+                        groupId: info.group.id,
+                        topicId: mid,
+                        content: content,
+                        createdAt: Date.now(),
+                        mentions: [currentTopicId],
+                        sourceTopicId: currentTopicId
+                    };
+                    saveNote(copyNote);
+                });
+            }
+
+            textarea.value = '';
+            pendingMentions.clear();
+            renderMentionPreview();
+            updateMentionBtnState();
+            renderNotes();
+            showToast(mentionsArr.length > 0 ? `已保存并关联 ${mentionsArr.length} 个主题` : '已保存');
+        };
+
+        let multiInsertedTopics = new Set();
+
+        function initBatchView() {
+            const groupSelect = document.getElementById('multiGroupSelect');
+            groupSelect.innerHTML = data.groups.map(g =>
+                `<option value="${g.id}">${escapeHtml(g.name)}</option>`
+            ).join('');
+
+            if (currentGroupId && data.groups.some(g => g.id === currentGroupId)) {
+                groupSelect.value = currentGroupId;
+            }
+
+            renderMultiTopicArea();
+            updateMultiInsertedCount();
+            groupSelect.onchange = renderMultiTopicArea;
+            multiInsertedTopics = new Set();
+        }
+
+        function renderMultiTopicArea() {
+            const groupId = document.getElementById('multiGroupSelect').value;
+            const group = data.groups.find(g => g.id === groupId);
+            const area = document.getElementById('multiTopicArea');
+            if (!group || group.topics.length === 0) {
+                area.innerHTML = '<div style="color:var(--text-light);font-size:0.85rem;padding:8px 0;">该分组暂无主题</div>';
+                return;
+            }
+            area.innerHTML = group.topics.map(t => {
+                const inserted = multiInsertedTopics.has(t.id);
+                return `<button class="topic-btn ${inserted ? 'inserted' : ''}" data-topic-id="${t.id}">${escapeHtml(t.name)}${inserted ? ' ✓' : ''}</button>`;
+            }).join('');
+
+            area.querySelectorAll('.topic-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const content = document.getElementById('multiNoteContent').value.trim();
+                    if (!content) { showToast('请先输入记事内容'); return; }
+                    const topicId = btn.dataset.topicId;
+                    if (multiInsertedTopics.has(topicId)) {
+                        showToast('该主题已插入过这条记事');
+                        return;
+                    }
+                    const newNote = {
+                        id: generateId(),
+                        groupId: groupId,
+                        topicId: topicId,
+                        content: content,
+                        createdAt: Date.now(),
+                        mentions: [],
+                        sourceTopicId: null
+                    };
+                    saveNote(newNote);
+                    multiInsertedTopics.add(topicId);
+                    renderMultiTopicArea();
+                    updateMultiInsertedCount();
+                    showToast('已插入');
+                };
+            });
+        }
+
+        function updateMultiInsertedCount() {
+            document.getElementById('multiInsertedCount').textContent = multiInsertedTopics.size;
+        }
+
+        function performTableImport() {
+            const raw = document.getElementById('tableImportContent').value;
+            if (!raw.trim()) { showToast('请粘贴表格内容'); return; }
+
+            const lines = raw.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim().length > 0);
+            if (lines.length < 2) { showToast('至少需要两行（标题行 + 数据行）'); return; }
+
+            const headerCells = lines[0].split('\t').map(s => s.trim());
+            const groupNames = headerCells.slice(1);
+
+            if (groupNames.length === 0) { showToast('未找到分组名'); return; }
+
+            let noteCount = 0;
+            let topicCreated = 0;
+            let groupCreated = 0;
+            const newNotes = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cells = lines[i].split('\t').map(s => s.trim());
+                const topicName = cells[0];
+                if (!topicName) continue;
+
+                for (let j = 0; j < groupNames.length; j++) {
+                    const groupName = groupNames[j];
+                    const content = cells[j + 1];
+                    if (!groupName) continue;
+                    if (!content || !content.trim()) continue;
+
+                    let group = data.groups.find(g => g.name === groupName);
+                    if (!group) {
+                        group = { id: generateId(), name: groupName, isDefault: false, topics: [] };
+                        data.groups.push(group);
+                        groupCreated++;
+                    }
+
+                    let topic = group.topics.find(t => t.name === topicName);
+                    if (!topic) {
+                        topic = { id: generateId(), name: topicName };
+                        group.topics.push(topic);
+                        topicCreated++;
+                    }
+
+                    newNotes.push({
+                        id: generateId(),
+                        groupId: group.id,
+                        topicId: topic.id,
+                        content: content.trim(),
+                        createdAt: Date.now(),
+                        mentions: [],
+                        sourceTopicId: null
+                    });
+                    noteCount++;
+                }
+            }
+
+            if (noteCount === 0) {
+                showToast('没有可导入的记事内容');
+                return;
+            }
+
+            for (const n of newNotes) {
+                saveNote(n);
+            }
+            saveMeta();
+            saveNotesIndex();
+            document.getElementById('tableImportContent').value = '';
+            showToast(`导入完成：新建 ${groupCreated} 个分组、${topicCreated} 个主题，共 ${noteCount} 条记事`);
+        }
+
+        document.getElementById('drawerSortToggle').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const sort = btn.dataset.sort;
+            if (sort === data.preferences.drawerSort) return;
+            data.preferences.drawerSort = sort;
+            saveMeta();
+            renderSortToggle(document.getElementById('drawerSortToggle'), sort);
+            renderDrawerGroups();
+            const labels = { default: '默认顺序', pinyin: '拼音', count: '记事数' };
+            showToast('分组按' + labels[sort] + '排序');
+        });
+
+        document.getElementById('homeTopicSortToggle').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const sort = btn.dataset.sort;
+            if (sort === data.preferences.topicSort) return;
+            data.preferences.topicSort = sort;
+            saveMeta();
+            renderSortToggle(document.getElementById('homeTopicSortToggle'), sort);
+            renderHome();
+            const labels = { default: '默认顺序', pinyin: '拼音', count: '记事数' };
+            showToast('主题按' + labels[sort] + '排序');
+        });
+
+        document.getElementById('topicSortToggle').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const sort = btn.dataset.sort;
+            if (sort === data.preferences.topicSort) return;
+            data.preferences.topicSort = sort;
+            saveMeta();
+            renderSortToggle(document.getElementById('topicSortToggle'), sort);
+            renderTopics();
+            const labels = { default: '默认顺序', pinyin: '拼音', count: '记事数' };
+            showToast('主题按' + labels[sort] + '排序');
+        });
+
+        document.getElementById('mentionCopyMode').addEventListener('change', (e) => {
+            data.preferences.mentionCopyMode = e.target.checked;
+            saveMeta();
+            showToast(e.target.checked ? '已开启：同时复制到被@的主题' : '已关闭：仅建立关联');
+        });
+
+        document.getElementById('menuBtn').onclick = openDrawer;
+        drawerOverlay.onclick = closeDrawer;
+
+        document.getElementById('topicsBackBtn').onclick = () => switchView('home');
+        document.getElementById('notesBackBtn').onclick = () => switchView('topics');
+        document.getElementById('batchBackBtn').onclick = () => switchView('home');
+        fabHomeBtn.onclick = () => switchView('home');
+
+        document.getElementById('manageGroupsBtn').onclick = () => { closeDrawer(); showGroupsManageModal(); };
+        document.getElementById('exportBtn').onclick = () => { closeDrawer(); exportAllData(); };
+        document.getElementById('importBtn').onclick = () => {
+            closeDrawer();
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json,application/json';
+            fileInput.onchange = (e) => { const file = e.target.files[0]; if (file) importDataFromFile(file); };
+            fileInput.click();
+        };
+        document.getElementById('batchBtn').onclick = () => { closeDrawer(); switchView('batch'); };
+
+        document.getElementById('addTopicBtn').onclick = () => {
+            const group = data.groups.find(g => g.id === currentGroupId);
+            if (group) showEditTopicModal(group, null);
+        };
+        document.getElementById('batchImportBtn').onclick = () => {
+            const group = data.groups.find(g => g.id === currentGroupId);
+            if (group) showBatchImportModal(group);
+        };
+
+        document.getElementById('tableImportBtn').onclick = performTableImport;
+        document.getElementById('tableImportClear').onclick = () => {
+            document.getElementById('tableImportContent').value = '';
+            showToast('已清空');
+        };
+
+        searchInput.addEventListener('input', (e) => {
+            searchKeyword = e.target.value;
+            if (searchKeyword.trim()) {
+                if (currentView !== 'search') switchView('search');
+                else renderSearchResults();
+            } else {
+                if (currentView === 'search') switchView('home');
+            }
+        });
+        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+
+        function showGroupsManageModal() {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>📂 管理分组</h3>
+                    <div id="manageGroupsList" style="margin-bottom:14px;"></div>
+                    <div class="modal-actions" style="justify-content: space-between;">
+                        <button class="btn btn-primary" id="mgAddGroup">+ 新建分组</button>
+                        <button class="btn btn-outline" id="mgClose">关闭</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContainer').appendChild(overlay);
+            const listEl = overlay.querySelector('#manageGroupsList');
+
+            function renderList() {
+                listEl.innerHTML = data.groups.map(g => `
+                    <div class="mg-row">
+                        <span style="font-size:0.9rem;">
+                            ${escapeHtml(g.name)}
+                            ${g.isDefault ? '<span style="font-size:0.65rem;background:#f59e0b;color:white;padding:1px 6px;border-radius:8px;margin-left:4px;">默认</span>' : ''}
+                        </span>
+                        <span style="display:flex;gap:2px;">
+                            ${!g.isDefault ? `<button class="icon-btn mg-set-default" data-id="${g.id}" title="设为默认">⭐</button>` : ''}
+                            <button class="icon-btn mg-rename" data-id="${g.id}" title="重命名">✏️</button>
+                            <button class="icon-btn mg-delete" data-id="${g.id}" title="删除">🗑️</button>
+                        </span>
+                    </div>
+                `).join('') || '<div class="empty-tip">暂无分组</div>';
+
+                listEl.querySelectorAll('.mg-set-default').forEach(btn => {
+                    btn.onclick = () => {
+                        data.groups.forEach(g => g.isDefault = (g.id === btn.dataset.id));
+                        saveMeta();
+                        renderList();
+                        renderDrawerGroups();
+                        showToast('已设为默认分组');
+                    };
+                });
+                listEl.querySelectorAll('.mg-rename').forEach(btn => {
+                    btn.onclick = () => {
+                        const group = data.groups.find(g => g.id === btn.dataset.id);
+                        if (!group) return;
+                        const newName = prompt('输入新的分组名称：', group.name);
+                        if (newName && newName.trim()) {
+                            group.name = newName.trim();
+                            saveMeta();
+                            renderList();
+                            renderDrawerGroups();
+                            showToast('已重命名');
+                        }
+                    };
+                });
+                listEl.querySelectorAll('.mg-delete').forEach(btn => {
+                    btn.onclick = async () => {
+                        const group = data.groups.find(g => g.id === btn.dataset.id);
+                        if (!group) return;
+                        if (group.isDefault) { showToast('默认分组不能删除'); return; }
+                        if (group.topics.length > 0) { showToast('请先删除该分组内所有主题'); return; }
+                        const ok = await confirmDelete(`确定删除分组「${group.name}」吗？`);
+                        if (ok) {
+                            data.groups = data.groups.filter(g => g.id !== group.id);
+                            saveMeta();
+                            renderList();
+                            renderDrawerGroups();
+                            showToast('分组已删除');
+                        }
+                    };
+                });
+            }
+
+            renderList();
+
+            overlay.querySelector('#mgAddGroup').onclick = () => {
+                const name = prompt('输入新分组名称：');
+                if (!name || !name.trim()) return;
+                if (data.groups.some(g => g.name === name.trim())) { showToast('已存在同名分组'); return; }
+                data.groups.push({ id: generateId(), name: name.trim(), isDefault: false, topics: [] });
+                saveMeta();
+                renderList();
+                renderDrawerGroups();
+                showToast('分组已创建');
+            };
+            overlay.querySelector('#mgClose').onclick = () => overlay.remove();
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        // ==================== 启动 ====================
+        initLoad();
+        switchView('home');
+    })();
+</script>
+</body>
+</html>
